@@ -18,13 +18,24 @@ class QuotesSpider(scrapy.Spider):
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
 
-    def parse_old_example(self, response):
+    #  Saving to file
+    def parse_example_1(self, response):
         page = response.url.split("/")[-2]
         filename = f'quotes-{page}.html'
         with open(filename, 'wb') as f:
             f.write(response.body)
         self.log(f'Saved file {filename}')
 
+    #  Yielding a dictionary
+    def parse_example_2(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').get(),
+                'author': quote.css('small.author::text').get(),
+                'tags': quote.css('div.tags a.tag::text').getall(),
+            }
+
+    # Crawling next pages
     def parse(self, response):
         for quote in response.css('div.quote'):
             yield {
@@ -32,3 +43,8 @@ class QuotesSpider(scrapy.Spider):
                 'author': quote.css('small.author::text').get(),
                 'tags': quote.css('div.tags a.tag::text').getall(),
             }
+
+        next_page = response.css('li.next a::attr(href)').get()
+        if next_page is not None:
+            next_page = response.urljoin(next_page)
+            yield scrapy.Request(next_page, callback=self.parse)
